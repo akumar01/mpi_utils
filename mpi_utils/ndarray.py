@@ -103,7 +103,6 @@ def Gather_ndlist(send, comm, root=0):
     """
 
     rank = comm.rank
-    dtype = send[0].dtype
     shapes = [x.shape for x in send]
 
     # Gather size tuples - this is a list of lists of tuples
@@ -112,23 +111,8 @@ def Gather_ndlist(send, comm, root=0):
     # Ravel list of arrays
     raveled_arrays = np.array([arr.ravel() for arr in send]).ravel()
 
-    if rank == root:
-        # Sizes of each of the raveled arrays
-        sizes = [np.sum([np.product(tup) for tup in tup_list])
-                 for tup_list in rank_shapes]
-        total_length = np.sum(sizes)
-        rec = np.empty(total_length, dtype=dtype)
-        # Location in rec where each incoming object should be placed
-        displs = np.insert(np.cumsum(sizes), 0, 0)[:-1]
-    else:
-        sizes = None
-        total_length = None
-        rec = None
-        displs = None
-
     # Stack end to end
-    comm.Gatherv(raveled_arrays, [rec, sizes, displs, _np2mpi[dtype]],
-                 root=root)
+    rec = comm.gather(raveled_arrays, root=root)
 
     # Separate and re-shape
     if rank == root:
